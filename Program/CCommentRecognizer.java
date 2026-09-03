@@ -1,12 +1,15 @@
-public class NFACommentChecker {
+public class CCommentRecognizer {
 
     private enum State {
-        START,     // q0: initial state
-        SEEN_SLASH,// q1: seen opening '/'
-        BODY,      // q2: inside comment body (not immediately following '*')
-        SEEN_STAR, // q3: inside comment, immediately saw '*'
-        ACCEPTED,  // q4: successfully closed by '*/'
-        ERROR      // invalid sequence / syntax error
+        START, // q0: initial state
+        SEEN_SLASH, // q1: seen opening '/'
+        BODY, // q2: inside comment body (last char was 'a' or '/')
+        SEEN_STAR, // q3: inside comment, last char was '*'
+        ACCEPTED // q4: closed comment via '*/'
+    }
+
+    private static boolean isValidSymbol(char ch) {
+        return ch == 'a' || ch == '*' || ch == '/';
     }
 
     public static boolean isValidComment(String input) {
@@ -18,6 +21,11 @@ public class NFACommentChecker {
 
         for (int i = 0; i < input.length(); i++) {
             char ch = input.charAt(i);
+
+            // Reject any character outside the defined alphabet Σ = { 'a', '*', '/' }
+            if (!isValidSymbol(ch)) {
+                return false;
+            }
 
             switch (currentState) {
                 case START:
@@ -39,8 +47,7 @@ public class NFACommentChecker {
                 case BODY:
                     if (ch == '*') {
                         currentState = State.SEEN_STAR;
-                    } else {
-                        // Stays in BODY for any character other than '*'
+                    } else if (ch == 'a' || ch == '/') {
                         currentState = State.BODY;
                     }
                     break;
@@ -49,19 +56,14 @@ public class NFACommentChecker {
                     if (ch == '/') {
                         currentState = State.ACCEPTED;
                     } else if (ch == '*') {
-                        // Consecutive '*' characters remain in SEEN_STAR
                         currentState = State.SEEN_STAR;
-                    } else {
-                        // Any other character returns to the main comment body
+                    } else if (ch == 'a') {
                         currentState = State.BODY;
                     }
                     break;
 
                 case ACCEPTED:
-                    // If any extra character appears after the comment has closed
-                    return false;
-
-                default:
+                    // Any character after a complete comment causes rejection
                     return false;
             }
         }
@@ -71,22 +73,22 @@ public class NFACommentChecker {
 
     public static void main(String[] args) {
         String[] testCases = {
-            "/**/",
-            "/*a*/",
-            "/*hello world*/",
-            "/***/",
-            "/****/",
-            "/* a * b */",
-            "/* / */",
-            "/*",
-            "*/",
-            "/*/",
-            "/*/*/",
-            "/**/extra"
+                "/*a*/",
+                "/**/",
+                "/***/",
+                "/*aaa*aaa*/",
+                "/*a/a*/",
+                "/**",
+                "/**/a/*aa*/",
+                "aaa/**/aa",
+                "/*/",
+                "/**a/",
+                "//aaaa",
+                "/*extra*/"
         };
 
         for (String test : testCases) {
-            System.out.printf("%-18s -> %s%n", "\"" + test + "\"", isValidComment(test) ? "ACCEPTED" : "REJECTED");
+            System.out.printf("%-12s -> %s%n", "\"" + test + "\"", isValidComment(test) ? "ACCEPTED" : "REJECTED");
         }
     }
 }
